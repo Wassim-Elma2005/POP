@@ -1,0 +1,26 @@
+# ------------------------------------------------------------------------------
+# MISLUKTE LOGINPOGINGEN DETECTEREN (Event ID 4625)
+# ------------------------------------------------------------------------------
+
+try {
+    $failedLogins = Get-WinEvent -FilterHashtable @{
+        LogName = 'Security'
+        Id = 4625
+        StartTime = (Get-Date).AddDays(-$DaysInactive)
+    } | ForEach-Object {
+        $event = [xml]$_.ToXml()
+        [PSCustomObject]@{
+            TimeCreated     = $_.TimeCreated
+            AccountName     = $event.Event.EventData.Data[5].'#text'
+            WorkstationName = $event.Event.EventData.Data[11].'#text'
+            FailureReason   = $event.Event.EventData.Data[23].'#text'
+        }
+    }
+
+    $failedCsvPath = Join-Path -Path $OutputPath -ChildPath "failed_logins.csv"
+    $failedLogins | Export-Csv -Path $failedCsvPath -NoTypeInformation
+    Write-Host "Mislukte loginpogingen opgeslagen in $failedCsvPath"
+}
+catch {
+    Write-Error "Er trad een fout op tijdens het ophalen of exporteren van mislukte logins: $_"
+}
